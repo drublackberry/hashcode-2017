@@ -15,16 +15,16 @@ def solve (scenario):
     # Loop until all servers are used
     while my_model.cache_servers_available():
         # Compute the costs of servers J_cv
-        J_cv = my_model.compute_J_cv()        
-        J_c = my_model.compute_J_c(J_cv)               
+        J_cv = my_model.compute_J_cv()
+        J_c = my_model.compute_J_c(J_cv)
         # Rank the servers by cost
-        cache_order = my_model.sort_cache_server_by_J_c(J_c)        
+        cache_order = my_model.sort_cache_server_by_J_c(J_c)
         for c in cache_order:
-            print 'Sorting server' + str(c)
-            my_model.store_video_in_cache_server(J_cv, c)    
+            print('Sorting server' + str(c))
+            my_model.store_video_in_cache_server(J_cv, c)
             # After my_modelving for the server dump the storage matrix
             my_model.write_storage('output', c)
             my_model.storage.to_excel(str(c)+'.xls')
-    
-        
+
+
 solve('trending_today')
