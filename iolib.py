@@ -75,13 +75,17 @@ class OutputBuffer(object):
         for c in storage.shape[1]:
             stuff[c] = [vid for vid in storage.shape[0]
                         if storage[vid, c] > 0]
-        self.result = stuff
+        self.result = dict([(k, v) for (k, v) in stuff.items() if len(v) > 0])
 
     def write_to_file(self, fname=None):
         if fname is None:
             fname = os.path.join(self.output_dir, prefix + ".out")
+        else:
+            fname = os.path.join(self.output_dir, fname)
         with open(fname, 'w') as fp:
-            for line in self.result:
+            fp.write("%d\n" % len(self.result))
+            for c, line in self.result.items():
+                fp.write("%d " % c)
                 fp.write(" ".join(["%d" % n for n in line]))
                 fp.write("\n")
 
