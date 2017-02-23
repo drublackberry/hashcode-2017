@@ -27,4 +27,4 @@ def solve (scenario):
             my_model.storage.to_excel(str(c)+'.xls')
     
         
-solve('me_at_the_zoo')
+solve('trending_today')

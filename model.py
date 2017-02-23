@@ -79,8 +79,8 @@ class Model:
     def available_storage (self, c, v):
         ''' Checks if there is enough storage available on the server c
         for video v
-        '''         
-        if (self.storage[c].dropna().sum() + v) <= self.X:
+        '''                 
+        if (self.storage[c].dropna().sum() + self.v_size.loc[v].values) <= self.X:
             return True
         else:
             return False
