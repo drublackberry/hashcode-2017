@@ -21,9 +21,7 @@ def solve (scenario):
         # Rank the servers by cost
         cache_order = solver.rank_cache_server_by_J_c(J_c)
         for c in cache_order:
-            v, e = solver.store_video_in_cache_server(J_cv, c)
-            solver.updateRn(v,e)
-            solver.updateL(c)        
+            solver.store_video_in_cache_server(J_cv, c)                
         # After solving for the server dump the storage matrix
         solver.write_storage()
     
