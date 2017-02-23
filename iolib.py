@@ -62,6 +62,29 @@ def read_scenario(scen_name):
     return data
 
 
+class OutputBuffer(object):
+
+    def __init__(self, prefix, output_dir):
+        self.prefix = prefix
+        self.output_dir = output_dir
+        self.result = None
+
+    def generate_output(self, storage):
+        # storage is a V X C matrix
+        stuff = {}
+        for c in storage.shape[1]:
+            stuff[c] = [vid for vid in storage.shape[0]
+                        if storage[vid, c]]
+        self.result = stuff
+
+    def write_to_file(self, fname=None):
+        if fname is None:
+            fname = os.path.join(self.output_dir, prefix + ".out")
+        with open(fname, 'w') as fp:
+            for line in self.result:
+                fp.write(" ".join(["%d" % n for n in line]))
+                fp.write("\n")
+
 if __name__ == "__main__":
     # test
     data = read_scenario("me_at_the_zoo")
