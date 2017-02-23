@@ -5,10 +5,11 @@ import os
 import tempfile
 import zipfile
 import glob
+from solver import solve
 
 
 def main(args):
-    print("Nothing implemented. Yet!")
+    solve(args.scenario_name)
 
 
 
