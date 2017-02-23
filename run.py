@@ -10,9 +10,12 @@ import glob
 def main(args):
     print("Nothing implemented. Yet!")
 
+
+
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("run_id", type=int)
+    parser.add_argument("scenario", type=str)
     args = parser.parse_args()
 
     outpath = os.path.join(".", "outputs", "%03d" % args.run_id)
