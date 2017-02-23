@@ -5,14 +5,16 @@ import os
 import tempfile
 import zipfile
 import glob
+from solver import solve
 
 
 def main(args):
-    print("Nothing implemented. Yet!")
+    solve(args.scenario_name)
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("run_id", type=int)
+    parser.add_argument("scenario_name", type=str)
     args = parser.parse_args()
 
     outpath = os.path.join(".", "outputs", "%03d" % args.run_id)
