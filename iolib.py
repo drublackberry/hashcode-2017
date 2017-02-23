@@ -74,7 +74,7 @@ class OutputBuffer(object):
         stuff = {}
         for c in storage.shape[1]:
             stuff[c] = [vid for vid in storage.shape[0]
-                        if storage[vid, c]]
+                        if storage[vid, c] > 0]
         self.result = stuff
 
     def write_to_file(self, fname=None):
