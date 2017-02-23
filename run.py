@@ -19,6 +19,11 @@ if __name__ == "__main__":
 
     outpath = os.path.join(".", "outputs", "%03d" % args.run_id)
     print("Preparing output directory %s" % outpath)
+
+    if not os.path.exists(os.path.join(".", "outputs")):
+        os.mkdir(os.path.join(".", "outputs"))
+
+
     if os.path.exists(outpath):
         bak = tempfile.mktemp(prefix="bak-%03d_" % args.run_id, dir=os.path.join(".", "outputs"))
         os.rename(outpath, bak)
