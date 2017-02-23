@@ -8,7 +8,7 @@ Intentionally left blank.
 from model import Model
 
 
-def solve (scenario):
+def solve(scenario, output_dir):
     # Load the scenario, it populates the Rn, L_ec, LD_e and Rn_ev matrices
     my_model = Model()
     my_model.load_scenario(scenario)
@@ -19,12 +19,8 @@ def solve (scenario):
         J_c = my_model.compute_J_c(J_cv)
         # Rank the servers by cost
         cache_order = my_model.sort_cache_server_by_J_c(J_c)
-        for c in cache_order:
+        for i, c in enumerate(cache_order):
             print('Sorting server' + str(c))
             my_model.store_video_in_cache_server(J_cv, c)
             # After my_modelving for the server dump the storage matrix
-            my_model.write_storage('output', c)
-
-
-if __name__ == "__main__":
-    solve('trending_today')
+            my_model.write_storage(output_dir, i)

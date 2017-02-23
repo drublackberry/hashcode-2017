@@ -8,8 +8,8 @@ import glob
 from solver import solve
 
 
-def main(args):
-    solve(args.scenario_name)
+def main(args, outpath):
+    solve(args.scenario_name, outpath)
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
@@ -33,4 +33,4 @@ if __name__ == "__main__":
             zip.write(filename)
     print("Setup done, launching main function.")
 
-    main(args)
+    main(args, outpath)
