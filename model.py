@@ -43,10 +43,11 @@ class Model:
         '''
         return J_cv.sum()        
     
-    def rank_cache_server_by_J_c(self, J_c):
+    def sort_cache_server_by_J_c(self, J_c):
         ''' Ranks from high to low the servers according to score J_c
         '''
-        return J_c.rank().index
+        return J_c.sort(ascending=False).index
+        
     
     def store_video_in_cache_server(self, J_cv, c):
         ''' Ranks video according to J_cv , 
@@ -55,12 +56,12 @@ class Model:
         returns v, e
         '''
         # Rank the videos on the given server by J_cv
-        video_order = J_cv[c].rank().index
+        video_order = J_cv[c].sort(ascending=False).index
         for v in video_order:
             # Check if the video fits in the cache server
             if self.available_storage(c,v):
                 # Store the video on the server
-                self.storage.loc[v,c] = 1
+                self.storage.loc[v,c] = self.v_size[v]
             else:
                 # server is full, remove the server from list and update Rn
                 self.remove_server(c)

@@ -17,7 +17,7 @@ def solve (scenario):
     while solver.cache_servers_available():
         # Compute the costs of servers J_cv
         J_cv = solver.compute_J_cv()
-        J_c = solver.compute_J_c()
+        J_c = solver.compute_J_c(J_cv)
         # Rank the servers by cost
         cache_order = solver.rank_cache_server_by_J_c(J_c)
         for c in cache_order:
