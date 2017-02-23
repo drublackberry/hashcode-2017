@@ -24,7 +24,7 @@ def solve (scenario):
             my_model.store_video_in_cache_server(J_cv, c)
             # After my_modelving for the server dump the storage matrix
             my_model.write_storage('output', c)
-            my_model.storage.to_excel(str(c)+'.xls')
 
 
-solve('trending_today')
+if __name__ == "__main__":
+    solve('trending_today')
