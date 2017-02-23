@@ -72,10 +72,10 @@ class OutputBuffer(object):
     def generate_output(self, storage):
         # storage is a V X C matrix
         stuff = {}
-        for c in storage.shape[1]:
-            stuff[c] = [vid for vid in storage.shape[0]
-                        if storage[vid, c] > 0]
-        self.result = dict([(k, v) for (k, v) in stuff.items() if len(v) > 0])
+        for c in storage.columns:
+            storage_c = storage[c]            
+            stuff[c] = list(storage_c[storage_c>0].index)        
+        self.result = dict([(k, v) for (k, v) in stuff.items() if len(v) > 0])        
 
     def write_to_file(self, fname=None):
         if fname is None:

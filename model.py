@@ -22,7 +22,7 @@ class Model:
         self.L = dict_in['L']      
         self.L_D = dict_in['L_d']
         self.Rn = dict_in['R_n']
-        self.C = dict_in['C']
+        self.X = dict_in['X']
         self.v_size = dict_in['v_size']
         self.storage = pd.DataFrame(0, index=self.Rn.columns, columns=self.L.columns)
         pass
@@ -66,10 +66,10 @@ class Model:
         '''
         # Rank the videos on the given server by J_cv
         video_order = J_cv[c].sort_values(ascending=False).index        
-        for v in video_order:
+        for v in video_order:            
             # Check if the video fits in the cache server
             if self.available_storage(c,v):
-                # Store the video on the                 
+                # Store the video on the                
                 self.storage.loc[v,c] = self.v_size.loc[v].values                
             else:
                 # server is full, remove the server from list and update Rn
@@ -79,8 +79,8 @@ class Model:
     def available_storage (self, c, v):
         ''' Checks if there is enough storage available on the server c
         for video v
-        '''        
-        if (self.storage[c].dropna().sum() + v) <= self.C:
+        '''         
+        if (self.storage[c].dropna().sum() + v) <= self.X:
             return True
         else:
             return False
@@ -88,10 +88,8 @@ class Model:
     def remove_server (self, c):
         ''' Removes a cache server from the available servers
         '''
-        self.L.drop(c)
-        print 'removing server'
-        print c
-        print self.L
+        #self.L.drop(c, axis=1, inplace=True)        
+        self.L = self.L[[col for col in self.L.columns if col != c]]        
     
     def update_Rn (self, c, v):
         ''' Updates Rn by putting zero requestst in (v,e)
@@ -104,8 +102,8 @@ class Model:
         '''
         return self.L[c].dropna()     
         
-    def write_storage(self, out_dir):
+    def write_storage(self, out_dir, c):
         out = iolib.OutputBuffer(self.scenario_name, out_dir)
         out.generate_output(self.storage)
-        out.write_to_file(str(time.ctime())+'.txt')
+        out.write_to_file(str(c)+'.txt')
         

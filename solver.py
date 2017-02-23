@@ -20,9 +20,11 @@ def solve (scenario):
         # Rank the servers by cost
         cache_order = my_model.sort_cache_server_by_J_c(J_c)        
         for c in cache_order:
-            my_model.store_video_in_cache_server(J_cv, c)                
+            print 'Sorting server' + str(c)
+            my_model.store_video_in_cache_server(J_cv, c)    
             # After my_modelving for the server dump the storage matrix
-            my_model.write_storage('output')
+            my_model.write_storage('output', c)
+            my_model.storage.to_excel(str(c)+'.xls')
     
         
 solve('me_at_the_zoo')
