@@ -15,37 +15,38 @@ def read_scenario(scen_name):
     with open(fname, 'r') as fp:
         V, E, R, C, X = [int(x) for x in fp.readline().strip().split()]
         v_sizes = [int(x) for x in fp.readline().strip().split()]
-    #print(V, E, R, C, X)
-    #print(len(v_sizes))
 
     # for each endnode
     start = 2
     endpoint_cache_lats = []
-    vec_L_d = np.ones(E, dtype=np.float64) * np.nan
+
+    # L_d is dense
+    vec_L_d = np.empty(E, dtype=np.int16)
+
     for e in range(E):
         L_d, K = np.genfromtxt(fname, skip_header=start, max_rows=1, dtype=np.int64)
         vec_L_d[e] = L_d
-        #print(L_d, K, e)
-        foo = np.genfromtxt(fname, skip_header=start+1, max_rows=K, dtype=np.int64)
-        if len(foo.shape) == 1:
-            foo = foo.reshape(1, len(foo))
+        if K == 0:
+            foo = []
+        else:
+            foo = np.genfromtxt(fname, skip_header=start+1, max_rows=K, dtype=np.int16)
+            if len(foo.shape) == 1:
+                foo = foo.reshape(1, len(foo))
         endpoint_cache_lats.append(foo)
-        #print("****\n", foo)
         start += 1 + K
     assert(len(endpoint_cache_lats) == E)
 
     # Now read requests
-    requests = np.genfromtxt(fname, skip_header=start, max_rows=R)
+    requests = np.genfromtxt(fname, skip_header=start, max_rows=R, dtype=np.int16)
 
     L = np.ones([E, C]) * np.nan
     for e in range(E):
         lats = endpoint_cache_lats[e]
-        # lats[:, 0] has the cache IDs!
-        #print(lats.shape, L.shape)
-        L[e, lats[:, 0]] = lats[:, 1]
+        if len(lats) > 0:
+            L[e, lats[:, 0]] = lats[:, 1]
 
-    R_n = np.ones([E, V]) * np.nan
-    req = requests.astype(np.int64)
+    R_n = np.zeros([E, V], dtype=np.int16)
+    req = requests.astype(np.int16)
 
     R_n[req[:, 1], req[:, 0]] = requests[:, 2]
 

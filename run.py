@@ -9,7 +9,7 @@ from solver import solve
 
 
 def main(args, outpath):
-    solve(args.scenario_name, outpath)
+    solve(args.scenario, outpath)
 
 
 
