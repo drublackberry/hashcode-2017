@@ -20,7 +20,9 @@ def solve(scenario, output_dir):
         # Rank the servers by cost
         cache_order = my_model.sort_cache_server_by_J_c(J_c)
         for i, c in enumerate(cache_order):
-            print('Sorting server' + str(c))
+            print("Sorting server {}".format(c))
+            #print ("L = \n {}".format(my_model.L))
+            #print ("Rn nans = \n {}".format(my_model.Rn.isnull().sum().sum()))
             my_model.store_video_in_cache_server(J_cv, c)
             # After my_modelving for the server dump the storage matrix
             my_model.write_storage(output_dir, i)
