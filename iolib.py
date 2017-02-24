@@ -50,9 +50,9 @@ def read_scenario(scen_name):
     R_n[req[:, 1], req[:, 0]] = requests[:, 2]
 
     data = {}
-    data['R_n'] = pd.DataFrame(R_n)#, columns=['v'], rows=['e'])
-    data['L_d'] = pd.DataFrame(vec_L_d)#, rows=['e'])
-    data['L'] = pd.DataFrame(L)#, rows)=['e'], columns=['c'])
+    data['R_n'] = pd.DataFrame(R_n)
+    data['L_d'] = pd.DataFrame(vec_L_d)
+    data['L'] = pd.DataFrame(L)
     data['V'] = V
     data['E'] = E
     data['R'] = R
@@ -73,15 +73,15 @@ class OutputBuffer(object):
         # storage is a V X C matrix
         stuff = {}
         for c in storage.columns:
-            storage_c = storage[c]            
-            stuff[c] = list(storage_c[storage_c>0].index)        
-        self.result = dict([(k, v) for (k, v) in stuff.items() if len(v) > 0])        
+            storage_c = storage[c]
+            stuff[c] = list(storage_c[storage_c>0].index)
+        self.result = dict([(k, v) for (k, v) in stuff.items() if len(v) > 0])
 
     def write_to_file(self, fname=None):
         if fname is None:
-            fname = os.path.join(self.output_dir, prefix + ".out")
+            fname = os.path.join(self.output_dir, self.prefix + ".out")
         else:
-            fname = os.path.join(self.output_dir, fname)
+            fname = os.path.join(self.output_dir, self.prefix + fname + ".out")
         with open(fname, 'w') as fp:
             fp.write("%d\n" % len(self.result))
             for c, line in self.result.items():

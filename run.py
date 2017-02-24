@@ -8,8 +8,8 @@ import glob
 from solver import solve
 
 
-def main(args):
-    solve(args.scenario_name)
+def main(args, outpath):
+    solve(args.scenario_name, outpath)
 
 
 
@@ -21,6 +21,11 @@ if __name__ == "__main__":
 
     outpath = os.path.join(".", "outputs", "%03d" % args.run_id)
     print("Preparing output directory %s" % outpath)
+
+    if not os.path.exists(os.path.join(".", "outputs")):
+        os.mkdir(os.path.join(".", "outputs"))
+
+
     if os.path.exists(outpath):
         bak = tempfile.mktemp(prefix="bak-%03d_" % args.run_id, dir=os.path.join(".", "outputs"))
         os.rename(outpath, bak)
@@ -35,4 +40,4 @@ if __name__ == "__main__":
             zip.write(filename)
     print("Setup done, launching main function.")
 
-    main(args)
+    main(args, outpath)
