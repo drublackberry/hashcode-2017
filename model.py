@@ -87,8 +87,7 @@ class SparseModel(ModelInterface):
         try:
             ic = ic[0][0]
         except:
-            print(ic)
-            raise
+            raise StopIteration()
         ind = np.argsort(J_cv[:, ic].todense())[::-1]
         video_order = self.videos[ind]
 
@@ -143,7 +142,7 @@ class SparseModel(ModelInterface):
 
     def write_storage(self, out_dir, i):
         out = iolib.OutputBuffer(self.scenario_name, out_dir)
-        out.generate_output(self.S)
+        out.generate_output(self.S.todense())
         out.write_to_file('-%04d' % i)
 
 
