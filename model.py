@@ -71,10 +71,11 @@ class Model:
             if self.available_storage(c,v):
                 # Store the video on the
                 self.storage.loc[v,c] = self.v_size.loc[v].values
+                self.update_Rn(c,v)
             else:
-                # server is full, remove the server from list and update Rn
+                # server is full, remove the server from list and update Rn                                
                 self.remove_server(c)
-        pass
+                return 0
 
     def available_storage (self, c, v):
         ''' Checks if there is enough storage available on the server c
@@ -88,18 +89,19 @@ class Model:
     def remove_server (self, c):
         ''' Removes a cache server from the available servers
         '''
+        print ('Removing server {} from list'.format(c))
         self.L = self.L[[col for col in self.L.columns if col != c]]
 
     def update_Rn (self, c, v):
         ''' Updates Rn by putting zero requestst in (v,e)
-        '''
-        for e in self.get_e_connected_to_c(c):
-            self.Rn.loc[e,v] = np.nan
+        '''        
+        for e in self.get_e_connected_to_c(c):              
+            self.Rn.loc[e,v] = np.nan                
 
     def get_e_connected_to_c (self, c):
         ''' Returns a list of endpoints connected to the server c
-        '''
-        return self.L[c].dropna()
+        '''        
+        return self.L[c].dropna().index
 
     def write_storage(self, out_dir, i):
         out = iolib.OutputBuffer(self.scenario_name, out_dir)
