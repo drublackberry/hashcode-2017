@@ -71,9 +71,9 @@ class Model:
             if self.available_storage(c,v):
                 # Store the video on the
                 self.storage.loc[v,c] = self.v_size.loc[v].values
-            else:
-                # server is full, remove the server from list and update Rn                
                 self.update_Rn(c,v)
+            else:
+                # server is full, remove the server from list and update Rn                                
                 self.remove_server(c)
                 return 0
 
@@ -95,8 +95,8 @@ class Model:
     def update_Rn (self, c, v):
         ''' Updates Rn by putting zero requestst in (v,e)
         '''        
-        for e in self.get_e_connected_to_c(c):            
-            self.Rn.loc[e,v] = np.nan          
+        for e in self.get_e_connected_to_c(c):              
+            self.Rn.loc[e,v] = np.nan                
 
     def get_e_connected_to_c (self, c):
         ''' Returns a list of endpoints connected to the server c
