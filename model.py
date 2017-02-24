@@ -44,7 +44,7 @@ class SparseModel(ModelInterface):
                 setattr(self, x, a.as_matrix())
 
         self.Rn_T = sp.csc_matrix(self.Rn.T)
-        print(self.Rn_T.shape, self.V, self.E)
+        #print(self.Rn_T.shape, self.V, self.E)
         #exit(1)
         self.S = sp.csc_matrix(np.zeros((self.V, self.C), dtype=np.int32))
         #print(self.S)
@@ -57,14 +57,9 @@ class SparseModel(ModelInterface):
     def compute_J_cv(self):
         dL = self.L_D - self.L
         dL[np.isnan(dL)] = 0
-        #print(dL.shape)
+        #print(dL)
         dL = sp.csc_matrix(dL)
-
         J_cv = sp.csc_matrix(self.Rn_T.dot(dL))
-        # print(J_cv)
-        # print("SHAPE", J_cv.shape)
-        # print("C", self.C)
-        # print("V", self.V)
         return J_cv
 
     def compute_J_c(self, J_cv):
@@ -72,8 +67,7 @@ class SparseModel(ModelInterface):
 
     def sort_cache_server_by_J_c(self, J_c):
         ind = np.argsort(J_c)[::-1]
-        #print(type(J_c))
-        #print("IND", ind)
+        #print(ind, self.caches[ind], J_c[ind])
         return self.caches[ind]
 
     def store_video_in_cache_server(self, J_cv, c):
@@ -88,19 +82,37 @@ class SparseModel(ModelInterface):
             ic = ic[0][0]
         except:
             raise StopIteration()
-        ind = np.argsort(J_cv[:, ic].todense())[::-1]
+
+        #print(J_cv.shape)
+        ind = np.argsort(np.asarray(J_cv[:, ic].todense()).reshape(-1))[::-1]
+        ind = [i for i in ind if J_cv[i, ic] > 0]
         video_order = self.videos[ind]
 
+        # for v in video_order:
+        #     # Check if the video fits in the cache server
+        #     if self.available_storage(c, v):
+        #         # Store the video on the
+        #         self.S[v, c] = self.v_size[v]
+        #     else:
+        #         # server is full, remove the server from list and update Rn
+        #         self.remove_server(c)
+        #         if self.cache_servers_available():
+        #             self.update_Rn(c, v)
+
+        space = self.X - self.S[:, c].sum()
+        full = False
         for v in video_order:
-            # Check if the video fits in the cache server
-            if self.available_storage(c, v):
-                # Store the video on the
+            if space >= self.v_size[v]:
                 self.S[v, c] = self.v_size[v]
-            else:
-                # server is full, remove the server from list and update Rn
-                self.remove_server(c)
-                if self.cache_servers_available():
-                    self.update_Rn(c, v)
+                for e in self.get_e_connected_to_c(c):
+                    self.Rn_T[v, e] = 0
+                break
+            full = True
+
+        if full or len(video_order) == 0:
+            self.remove_server(c)
+            raise StopIteration()
+
 
     def available_storage(self, c, v):
         #print(self.S.shape)
@@ -112,6 +124,7 @@ class SparseModel(ModelInterface):
         ''' Removes a cache server from the available servers
         '''
         #self.L = self.L[[col for col in self.L.columns if col != c]]
+        print("KILL: ", c)
         ic = np.argwhere(self.caches == c)
         #print(ic, c)
         #print("ic", ic)
