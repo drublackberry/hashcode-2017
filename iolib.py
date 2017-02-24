@@ -26,9 +26,12 @@ def read_scenario(scen_name):
         L_d, K = np.genfromtxt(fname, skip_header=start, max_rows=1, dtype=np.int64)
         vec_L_d[e] = L_d
         #print(L_d, K, e)
-        foo = np.genfromtxt(fname, skip_header=start+1, max_rows=K, dtype=np.int64)
-        if len(foo.shape) == 1:
-            foo = foo.reshape(1, len(foo))
+        if K > 0:
+            foo = np.genfromtxt(fname, skip_header=start+1, max_rows=K, dtype=np.int64)
+            if len(foo.shape) == 1:
+                foo = foo.reshape(1, len(foo))
+        else:
+            foo = []
         endpoint_cache_lats.append(foo)
         #print("****\n", foo)
         start += 1 + K
@@ -40,9 +43,8 @@ def read_scenario(scen_name):
     L = np.ones([E, C]) * np.nan
     for e in range(E):
         lats = endpoint_cache_lats[e]
-        # lats[:, 0] has the cache IDs!
-        #print(lats.shape, L.shape)
-        L[e, lats[:, 0]] = lats[:, 1]
+        if len(lat):
+            L[e, lats[:, 0]] = lats[:, 1]
 
     R_n = np.ones([E, V]) * np.nan
     req = requests.astype(np.int64)
