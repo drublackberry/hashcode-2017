@@ -6,6 +6,7 @@ I/O functions for Hashcode 2017.
 
 import numpy as np
 import pandas as pd
+import scipy.sparse as sp
 import os
 
 INPUT_DIR = os.path.join(".", "input")
@@ -40,6 +41,7 @@ def read_scenario(scen_name):
     requests = np.genfromtxt(fname, skip_header=start, max_rows=R, dtype=np.int16)
 
     L = np.ones([E, C]) * np.nan
+
     for e in range(E):
         lats = endpoint_cache_lats[e]
         if len(lats) > 0:
@@ -73,9 +75,17 @@ class OutputBuffer(object):
     def generate_output(self, storage):
         # storage is a V X C matrix
         stuff = {}
-        for c in storage.columns:
-            storage_c = storage[c]
-            stuff[c] = list(storage_c[storage_c>0].index)
+
+        try:
+            for c in storage.columns:
+                storage_c = storage[c]
+                stuff[c] = list(storage_c[storage_c>0].index)
+        except:
+            n = storage.shape[1]
+            for c in range(n):
+                inds = np.argwhere(storage[:, c] > 0)
+                if len(inds) > 0:
+                    inds = inds.flatten()
         self.result = dict([(k, v) for (k, v) in stuff.items() if len(v) > 0])
 
     def write_to_file(self, fname=None):

@@ -9,7 +9,7 @@ from solver import solve
 
 
 def main(args, outpath):
-    solve(args.scenario, outpath)
+    solve(args.scenario, outpath, model=args.model)
 
 
 
@@ -17,6 +17,7 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("run_id", type=int)
     parser.add_argument("scenario", type=str)
+    parser.add_argument("--model", type=str, default="dense")
     args = parser.parse_args()
 
     outpath = os.path.join(".", "outputs", "%03d" % args.run_id)
