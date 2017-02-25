@@ -5,6 +5,7 @@ Simulated annealing optimizer for the video caching problem.
 """
 
 import numpy as np
+import scipy.sparse as sp
 import rules
 
 
@@ -22,31 +23,38 @@ def sim_anneal(mod, k_B=1.0, k_fill_rate=1000, n_fill_rate=2, evo_damp=0.1, judg
         return T0 * (cooling_rate ** t)
 
     def fn_energy(S):
-        fill_rate = (S * mod.v_size).sum(axis=0) / mod.X
+        fill_rate = (S.multiply(mod.v_size)).sum(axis=0) / mod.X
 
         score = judge.score(S, ignore_overflow=False, fill_rate=fill_rate)
-        return - score + k_fill_rate * (fill_rate ** (n_fill_rate)).sum()
+        #return - score + k_fill_rate * (fill_rate ** (n_fill_rate)).sum()
+        return -score
 
     def fn_invalid(S):
         print("Repair solution...")
         while True:
-            F = np.asarray(S * mod.v_size / mod.X)
-            fill_rate = F.sum(axis=0)
+            F = np.asarray(S.multiply(mod.v_size) / mod.X)
+            #print(F.shape)
+            fill_rate = np.sum(F, axis=0)
+            #print(fill_rate.shape)
             full = np.greater(fill_rate, 1)
+            #print(full)
+            #exit(1)
             if not np.any(full):
                 print("DONE")
                 return S
-            caches = np.argwhere(full)[0]
+            caches = np.argwhere(full)
+            #print(len(caches))
             for c in caches:
                 i = F[:, c].argmax()
-                S[i, c] = 0
+                S[i, c] = False
 
-    w = mod.v_size.sum()
-    weights = mod.v_size / w
+    w = (mod.v_size ** 2).sum()
+    weights = mod.v_size ** 2/ w
     print(weights)
     def fn_evo(temp):
         T_ = (weights * np.random.rand(*S_shape) < evo_damp * temp / w)
-        return lambda S: np.logical_xor(T_, S)
+        #return lambda S: np.logical_xor(T_, S)
+        return lambda S: sp.csc_matrix(np.logical_xor(T_, S.toarray()))
 
     return SimAnneal(fn_temp, fn_energy, fn_evo, k=k_B, allow_zero=allow_zero, fn_invalid=fn_invalid)
 
@@ -112,6 +120,9 @@ class SimAnneal(object):
         if (dE < 0) or (p > np.exp(-dE / (self.k * temp))):
             S_next_true = S_next
             E_next_true = E_next
+
+        #print(type(S_next_true))
+        #print(S_next_true.shape)
 
         return S_next_true, E_next_true
 

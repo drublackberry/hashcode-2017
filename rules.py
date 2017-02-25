@@ -35,9 +35,9 @@ class Judge(object):
 
     def overflow(self, S, fill_rate=None):
         if fill_rate is None:
-            fill_rate = (S * self.v_size).sum(axis=0) / self.X
+            fill_rate = (S.multiply(self.v_size)).sum(axis=0) / self.X
 
-        return np.any(np.greater(fill_rate, 1))
+        return np.any(np.greater(np.asarray(fill_rate), 1))
 
 
     def score(self, S, ignore_overflow=False, fill_rate=None):
@@ -52,8 +52,12 @@ class Judge(object):
         dL_tot = 0
         for e in range(self.E):
             #print(self.dL[e].shape, S.shape)
-            dL_per_video = np.asarray((self.dL[e].multiply(S).max(axis=-1)))
-            dL_tot += self.Rn[e].dot(dL_per_video)
+            dL_per_video = self.dL[e].multiply(S).toarray().max(axis=-1)
+            #print(dL_per_video.shape)
+            # print(type(self.Rn[e]))
+
+            delta = float(self.Rn[e].dot(dL_per_video))
+            dL_tot += delta
 
         s = dL_tot * 1000 / self.total_reqs
         return s

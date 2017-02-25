@@ -47,7 +47,7 @@ def read_scenario(scen_name):
         if len(lats) > 0:
             L[e, lats[:, 0]] = lats[:, 1]
 
-    R_n = np.zeros([E, V], dtype=np.int16)
+    R_n = np.zeros([E, V], dtype=np.int32)
     req = requests.astype(np.int16)
 
     #R_n[req[:, 1], req[:, 0]] = requests[:, 2]
@@ -85,8 +85,10 @@ class OutputBuffer(object):
         except:
             # not a DataFrame
             n = storage.shape[1]
+            storage = storage.toarray()
+            #print(storage.shape)
             for c in range(n):
-                inds = np.argwhere(np.asarray(storage[:, c]).ravel() > 0)
+                inds = np.argwhere(storage[:, c] > 0)
                 #print(inds)
                 if len(inds) > 0:
                     inds = inds.flatten()
