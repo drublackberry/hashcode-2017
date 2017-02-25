@@ -17,29 +17,45 @@ def sim_anneal(mod, k_B=1.0, k_fill_rate=1000, n_fill_rate=2, evo_damp=0.1, judg
     if judge is None:
         judge = rules.Judge(mod)
 
-    #fn_temp = lambda x: np.exp(-x ** 2)
     def fn_temp(x):
         t = np.int(x / cooling_step)
         return T0 * (cooling_rate ** t)
 
     def fn_energy(S):
         fill_rate = (S * mod.v_size).sum(axis=0) / mod.X
-        #print(fill_rate)
 
         score = judge.score(S, ignore_overflow=False, fill_rate=fill_rate)
         return - score + k_fill_rate * (fill_rate ** (n_fill_rate)).sum()
 
+    def fn_invalid(S):
+        print("Repair solution...")
+        while True:
+            F = np.asarray(S * mod.v_size / mod.X)
+            fill_rate = F.sum(axis=0)
+            full = np.greater(fill_rate, 1)
+            if not np.any(full):
+                print("DONE")
+                return S
+            caches = np.argwhere(full)[0]
+            for c in caches:
+                i = F[:, c].argmax()
+                S[i, c] = 0
+
+    w = mod.v_size.sum()
+    weights = mod.v_size / w
+    print(weights)
     def fn_evo(temp):
-        T_ = (np.random.rand(*S_shape) < evo_damp * temp / S_size)
+        T_ = (weights * np.random.rand(*S_shape) < evo_damp * temp / w)
         return lambda S: np.logical_xor(T_, S)
 
-    return SimAnneal(fn_temp, fn_energy, fn_evo, k=k_B, allow_zero=allow_zero)
+    return SimAnneal(fn_temp, fn_energy, fn_evo, k=k_B, allow_zero=allow_zero, fn_invalid=fn_invalid)
 
 
 class SimAnneal(object):
 
 
-    def __init__(self, fn_temp, fn_energy, fn_evo, k=1.0, allow_zero=True):
+    def __init__(self, fn_temp, fn_energy, fn_evo, k=1.0, allow_zero=True,
+                 fn_invalid=None):
         """
         fn_temp - callable [0, 1] -> T
         fn_energy - callable S -> E(S)
@@ -52,6 +68,8 @@ class SimAnneal(object):
         self.fn_evo = fn_evo
         self.k = k
         self.allow_zero = allow_zero
+        self.fn_invalid = fn_invalid
+
 
     def get_next_state(self, S, x):
         """
@@ -75,11 +93,15 @@ class SimAnneal(object):
                 dE = E_next - E
 
         if not self.allow_zero:
-            while E_next >= 0:
-                T = self.fn_evo(temp)
-                S_next = T(S)
-                E_next = self.fn_energy(S_next)
-            assert E_next < 0
+            if self.fn_invalid is not None:
+                if E_next >= 0:
+                    S_next = self.fn_invalid(S_next)
+                    E_next = self.fn_energy(S_next)
+            else:
+                while E_next >= 0:
+                    T = self.fn_evo(temp)
+                    S_next = T(S)
+                    E_next = self.fn_energy(S_next)
 
         S_next_true = S
         E_next_true = E
