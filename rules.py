@@ -33,18 +33,20 @@ class Judge(object):
         self.V = mod.V
 
 
-    def overflow(self, S):
-        fill_rate = (S * self.v_size).sum(axis=0) / self.X
+    def overflow(self, S, fill_rate=None):
+        if fill_rate is None:
+            fill_rate = (S * self.v_size).sum(axis=0) / self.X
+
         return np.any(np.greater(fill_rate, 1))
 
 
-    def score(self, S, ignore_overflow=False):
+    def score(self, S, ignore_overflow=False, fill_rate=None):
         """
         Return score for state S.
         """
 
         if not ignore_overflow:
-            if self.overflow(S):
+            if self.overflow(S, fill_rate):
                 return 0
 
         dL_tot = 0

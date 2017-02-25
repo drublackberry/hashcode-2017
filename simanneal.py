@@ -8,11 +8,14 @@ import numpy as np
 import rules
 
 
-def sim_anneal(mod, k_B=1.0, k_fill_rate=1000, n_fill_rate=2, evo_damp=0.1):
+def sim_anneal(mod, k_B=1.0, k_fill_rate=1000, n_fill_rate=2, evo_damp=0.1, judge=None,
+               allow_zero=True):
     S_shape = (mod.V, mod.C)
     S_size = mod.V * mod.C
     S_dtype = np.bool
-    judge = rules.Judge(mod)
+
+    if judge is None:
+        judge = rules.Judge(mod)
 
     fn_temp = lambda x: np.exp(-x ** 2)
 
@@ -20,20 +23,20 @@ def sim_anneal(mod, k_B=1.0, k_fill_rate=1000, n_fill_rate=2, evo_damp=0.1):
         fill_rate = (S * mod.v_size).sum(axis=0) / mod.X
         #print(fill_rate)
 
-        score = judge.score(S, ignore_overflow=True)
+        score = judge.score(S, ignore_overflow=False, fill_rate=fill_rate)
         return - score + k_fill_rate * (fill_rate ** (n_fill_rate)).sum()
 
     def fn_evo(temp):
         T_ = (np.random.rand(*S_shape) < evo_damp * temp / S_size)
         return lambda S: np.logical_xor(T_, S)
 
-    return SimAnneal(fn_temp, fn_energy, fn_evo, k=k_B)
+    return SimAnneal(fn_temp, fn_energy, fn_evo, k=k_B, allow_zero=allow_zero)
 
 
 class SimAnneal(object):
 
 
-    def __init__(self, fn_temp, fn_energy, fn_evo, k=1.0):
+    def __init__(self, fn_temp, fn_energy, fn_evo, k=1.0, allow_zero=True):
         """
         fn_temp - callable [0, 1] -> T
         fn_energy - callable S -> E(S)
@@ -45,6 +48,7 @@ class SimAnneal(object):
         self.fn_energy = fn_energy
         self.fn_evo = fn_evo
         self.k = k
+        self.allow_zero = allow_zero
 
     def get_next_state(self, S, x):
         """
@@ -52,13 +56,17 @@ class SimAnneal(object):
         """
 
         temp = self.fn_temp(x)
-        T = self.fn_evo(temp)
-        #print(S, x)
-        S_next = T(S)
-
         E = self.fn_energy(S)
+
+        T = self.fn_evo(temp)
+        S_next = T(S)
         E_next = self.fn_energy(S_next)
-        #print(E, E_next)
+        if not self.allow_zero:
+            while E_next >= 0:
+                T = self.fn_evo(temp)
+                S_next = T(S)
+                E_next = self.fn_energy(S_next)
+            assert E_next < 0
 
         S_next_true = S
         E_next_true = E
@@ -69,6 +77,7 @@ class SimAnneal(object):
             S_next_true = S_next
             E_next_true = E_next
 
+        assert E_next_true < 0
         return S_next_true, E_next_true
 
 
