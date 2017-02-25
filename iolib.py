@@ -81,11 +81,14 @@ class OutputBuffer(object):
                 storage_c = storage[c]
                 stuff[c] = list(storage_c[storage_c>0].index)
         except:
+            # not a DataFrame
             n = storage.shape[1]
             for c in range(n):
-                inds = np.argwhere(storage[:, c] > 0)
+                inds = np.argwhere(np.asarray(storage[:, c]).ravel() > 0)
+                #print(inds)
                 if len(inds) > 0:
                     inds = inds.flatten()
+                stuff[c] = inds
         self.result = dict([(k, v) for (k, v) in stuff.items() if len(v) > 0])
 
     def write_to_file(self, fname=None):
