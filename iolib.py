@@ -50,7 +50,9 @@ def read_scenario(scen_name):
     R_n = np.zeros([E, V], dtype=np.int16)
     req = requests.astype(np.int16)
 
-    R_n[req[:, 1], req[:, 0]] = requests[:, 2]
+    #R_n[req[:, 1], req[:, 0]] = requests[:, 2]
+    for r, (v, e, n) in enumerate(requests):
+        R_n[e, v] += n
 
     data = {}
     data['R_n'] = pd.DataFrame(R_n)
