@@ -47,12 +47,15 @@ class SparseModel(ModelInterface):
         #print(self.Rn_T.shape, self.V, self.E)
         #exit(1)
         self.S = sp.csc_matrix(np.zeros((self.V, self.C), dtype=np.int32))
-        #print(self.S)
         self.caches = np.arange(self.C)
         self.videos = np.arange(self.V)
 
     def cache_servers_available(self):
         return len(self.caches)
+
+    @property
+    def storage(self):
+        return self.S
 
     def compute_J_cv(self):
         dL = self.L_D - self.L
