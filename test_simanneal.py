@@ -12,28 +12,31 @@ import glob
 import tempfile
 
 
-STEPS = 10000
+STEPS = 100000
 K_B = 10000
 K_FR = 0
 N_FR = 0
-DAMP = 0.1
-
+DAMP = 0.001
+CSTEP = 0.05
+T0 = 5000
+CRATE = 0.8
 
 def main(args, outpath):
     mod = model.SparseModel(args.scenario)
     judge = rules.Judge(mod)
 
     algo = simanneal.sim_anneal(mod, K_B, K_FR, N_FR, DAMP, judge=judge,
-                                allow_zero=False)
+                                allow_zero=False, T0=T0, cooling_step=CSTEP,
+                                cooling_rate=CRATE)
 
     S_0 = np.greater(mod.storage.toarray(), 0)
 
     buf = iolib.OutputBuffer(args.scenario, outpath)
     for i, (S, E) in enumerate(algo(S_0, STEPS)):
         if i % 1000 == 0:
-            print(i, "%.3e" % E, "%.3e" % judge.score(S))
+            print(i, "E=%.3e" % E, "T=%.3f" % algo.fn_temp(i / STEPS))
             buf.generate_output(S)
-            buf.write_to_file("-%05d" % i)
+            buf.write_to_file("-%05d" % (i / 1000))
 
 
 

@@ -9,7 +9,7 @@ import rules
 
 
 def sim_anneal(mod, k_B=1.0, k_fill_rate=1000, n_fill_rate=2, evo_damp=0.1, judge=None,
-               allow_zero=True):
+               allow_zero=True, cooling_step=0.1, T0=1.0, cooling_rate=0.9):
     S_shape = (mod.V, mod.C)
     S_size = mod.V * mod.C
     S_dtype = np.bool
@@ -17,7 +17,10 @@ def sim_anneal(mod, k_B=1.0, k_fill_rate=1000, n_fill_rate=2, evo_damp=0.1, judg
     if judge is None:
         judge = rules.Judge(mod)
 
-    fn_temp = lambda x: np.exp(-x ** 2)
+    #fn_temp = lambda x: np.exp(-x ** 2)
+    def fn_temp(x):
+        t = np.int(x / cooling_step)
+        return T0 * (cooling_rate ** t)
 
     def fn_energy(S):
         fill_rate = (S * mod.v_size).sum(axis=0) / mod.X
@@ -61,6 +64,16 @@ class SimAnneal(object):
         T = self.fn_evo(temp)
         S_next = T(S)
         E_next = self.fn_energy(S_next)
+
+        # If we're already non-compliant, accept only descent
+        if E >= 0:
+            dE = E_next - E
+            while dE > 0:
+                T = self.fn_evo(temp)
+                S_next = T(S)
+                E_next = self.fn_energy(S_next)
+                dE = E_next - E
+
         if not self.allow_zero:
             while E_next >= 0:
                 T = self.fn_evo(temp)
@@ -72,12 +85,12 @@ class SimAnneal(object):
         E_next_true = E
         dE = E_next - E
 
+
         p = np.random.rand()
         if (dE < 0) or (p > np.exp(-dE / (self.k * temp))):
             S_next_true = S_next
             E_next_true = E_next
 
-        assert E_next_true < 0
         return S_next_true, E_next_true
 
 
