@@ -28,28 +28,30 @@ def sim_anneal(mod, k_B=1.0, k_fill_rate=1000, n_fill_rate=2, evo_damp=0.1, judg
         score = judge.score(S, ignore_overflow=False, fill_rate=fill_rate)
         #return - score + k_fill_rate * (fill_rate ** (n_fill_rate)).sum()
         return -score
+        #return -score + k_fill_rate * (np.asarray(fill_rate) ** 2).sum()
 
     def fn_invalid(S):
-        print("Repair solution...")
+        #print("Repair solution...")
         while True:
             F = np.asarray(S.multiply(mod.v_size) / mod.X)
-            #print(F.shape)
             fill_rate = np.sum(F, axis=0)
-            #print(fill_rate.shape)
             full = np.greater(fill_rate, 1)
-            #print(full)
-            #exit(1)
             if not np.any(full):
-                print("DONE")
+                #print("DONE")
                 return S
             caches = np.argwhere(full)
-            #print(len(caches))
+            c = len(caches.flatten())
+            r = np.arange(S.shape[0])
             for c in caches:
-                i = F[:, c].argmax()
-                S[i, c] = False
+                # Each full cache drops a random video
+                v = np.random.choice(r[F[:, c].reshape(-1) > 0])
+                S[v, c] = False
 
-    w = (mod.v_size ** 2).sum()
-    weights = mod.v_size ** 2/ w
+    # w = (mod.v_size ** 2).sum()
+    # weights = mod.v_size ** 2 / w
+    w = np.exp(1e-3 * mod.v_size).sum()
+    print(w)
+    weights = np.exp(1e-3 * mod.v_size) / w
     print(weights)
     def fn_evo(temp):
         T_ = (weights * np.random.rand(*S_shape) < evo_damp * temp / w)
@@ -92,13 +94,13 @@ class SimAnneal(object):
         E_next = self.fn_energy(S_next)
 
         # If we're already non-compliant, accept only descent
-        if E >= 0:
-            dE = E_next - E
-            while dE > 0:
-                T = self.fn_evo(temp)
-                S_next = T(S)
-                E_next = self.fn_energy(S_next)
-                dE = E_next - E
+        # if E >= 0:
+        #     dE = E_next - E
+        #     while dE > 0:
+        #         T = self.fn_evo(temp)
+        #         S_next = T(S)
+        #         E_next = self.fn_energy(S_next)
+        #         dE = E_next - E
 
         if not self.allow_zero:
             if self.fn_invalid is not None:
@@ -117,7 +119,7 @@ class SimAnneal(object):
 
 
         p = np.random.rand()
-        if (dE < 0) or (p > np.exp(-dE / (self.k * temp))):
+        if (dE < 0) or (p < np.exp(-dE / (self.k * temp))):
             S_next_true = S_next
             E_next_true = E_next
 
