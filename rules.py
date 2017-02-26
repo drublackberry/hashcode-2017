@@ -16,10 +16,10 @@ class Judge(object):
         dL[np.isnan(dL)] = 0
 
         # dL: (E x C)
-        self.dL = sp.csc_matrix(dL)
+        self.dL = sp.csr_matrix(dL)
 
         # Rn: (E x V)
-        self.Rn = sp.csc_matrix(mod.Rn)
+        self.Rn = sp.csc_matrix(mod.Rn, dtype=np.uint32)
         self.total_reqs = int(self.Rn.sum())
 
 
@@ -49,11 +49,11 @@ class Judge(object):
             if self.overflow(S, fill_rate):
                 return 0
 
-        mx = np.zeros((self.V, self.E))
+        mx = np.empty((self.E, self.V), np.uint32)
 
         dL = self.dL
         for e, dL_row in enumerate(dL):
-            mx[:, e] = dL_row.multiply(S).max(axis=-1).toarray()[:, 0]
-        dL_tot = self.Rn.multiply(mx.T).sum()
+            mx[e, :] = dL_row.multiply(S).max(axis=-1).toarray()[:, 0]
+        dL_tot = self.Rn.multiply(mx).sum()
 
         return dL_tot * 1000 / self.total_reqs
