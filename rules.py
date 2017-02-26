@@ -53,8 +53,7 @@ class Judge(object):
 
         dL = self.dL
         for e, dL_row in enumerate(dL):
-            stuff = dL_row.multiply(S).max(axis=-1)
-            mx[:, e] = stuff.toarray()[:, 0]
-        dL_tot = self.Rn.dot(mx).diagonal().sum()
+            mx[:, e] = dL_row.multiply(S).max(axis=-1).toarray()[:, 0]
+        dL_tot = self.Rn.multiply(mx.T).sum()
 
         return dL_tot * 1000 / self.total_reqs
