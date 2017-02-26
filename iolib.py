@@ -107,6 +107,17 @@ class OutputBuffer(object):
                 fp.write(" ".join(["%d" % n for n in line]))
                 fp.write("\n")
 
+
+def read_output(fname, C, V):
+    S = sp.lil_matrix((V, C), dtype=np.bool)
+    with open(fname, 'r') as fp:
+        fp.readline()
+        for line in fp.readlines():
+            data = np.asarray([int(x) for x in line.strip().split()])
+            S[data[1:], data[0]] = True
+    return S.tocsc()
+
+
 if __name__ == "__main__":
     # test
     data = read_scenario("me_at_the_zoo")
