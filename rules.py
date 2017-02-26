@@ -50,14 +50,19 @@ class Judge(object):
                 return 0
 
         dL_tot = 0
-        for e in range(self.E):
-            #print(self.dL[e].shape, S.shape)
-            dL_per_video = self.dL[e].multiply(S).toarray().max(axis=-1)
-            #print(dL_per_video.shape)
-            # print(type(self.Rn[e]))
 
-            delta = float(self.Rn[e].dot(dL_per_video))
-            dL_tot += delta
+        # for e in range(self.E):
+        #     dL_per_video = self.dL[e].multiply(S).toarray().max(axis=-1)
+        #     delta = float(self.Rn[e].dot(dL_per_video))
+        #     dL_tot += delta
+
+        # Videos actually requested
+        #e_R_nz, v_R_nz = self.Rn.nonzero()
+
+        #print(type(self.dL[0]))
+        for e in range(self.E):
+            dL_per_video = self.dL[e].multiply(S).max(axis=-1)
+            dL_tot += self.Rn[e].dot(dL_per_video)[0, 0]
 
         s = dL_tot * 1000 / self.total_reqs
         return s
