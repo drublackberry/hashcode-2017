@@ -15,6 +15,8 @@ def sim_anneal(mod, k_B=1.0, k_fill_rate=1000, n_fill_rate=2, evo_damp=0.1, judg
     S_size = mod.V * mod.C
     S_dtype = np.bool
 
+    fr = lambda S: S.multiply(mod.v_size).sum(axis=0) / mod.X
+
     if judge is None:
         judge = rules.Judge(mod)
 
@@ -36,6 +38,7 @@ def sim_anneal(mod, k_B=1.0, k_fill_rate=1000, n_fill_rate=2, evo_damp=0.1, judg
             F = np.asarray(S.multiply(mod.v_size) / mod.X)
             fill_rate = np.sum(F, axis=0)
             full = np.greater(fill_rate, 1)
+            #print(full)
             if not np.any(full):
                 #print("DONE")
                 return S
@@ -45,21 +48,46 @@ def sim_anneal(mod, k_B=1.0, k_fill_rate=1000, n_fill_rate=2, evo_damp=0.1, judg
             for c in caches:
                 # Each full cache drops a random video
                 v = np.random.choice(r[F[:, c].reshape(-1) > 0])
-                S[v, c] = False
+                S[v, c] = 0
 
-    # w = (mod.v_size ** 2).sum()
-    # weights = mod.v_size ** 2 / w
     w = np.exp(1e-3 * mod.v_size).sum()
-    print(w)
     weights = np.exp(1e-3 * mod.v_size) / w
-    print(weights)
     def fn_evo(temp):
-        T_ = (weights * np.random.rand(*S_shape) < evo_damp * temp / w)
-        #return lambda S: np.logical_xor(T_, S)
-        return lambda S: sp.csc_matrix(np.logical_xor(T_, S.toarray()))
+        T_ = (weights * np.random.rand(*S_shape) < evo_damp * temp / w).astype(np.int8)
+
+        def _f(S):
+            S_tmp = sp.csc_matrix(xor_helper(T_, S))
+            D = S_tmp - S
+            #print(D)
+            # Only positive changes are important here
+            D = (D + D.power(2)) / 2
+
+            F = np.asarray(fr(S_tmp)).reshape(-1)
+            #print(type(F), F.shape)
+            #print(F)
+            full = np.flatnonzero(F > 1)
+            #print(full.shape)
+            #print(full)
+            #exit(1)
+            if len(full) == 0:
+                return sp.csc_matrix(S_tmp)
+            #print(full)
+            S_tmp[:, full] = xor_helper(S_tmp[:, full], D[:, full])
+            #print("FILLRATE", fr(S_tmp))
+            #print(S_tmp.shape)
+            return sp.csc_matrix(S_tmp)
+
+        #return lambda S: sp.csc_matrix(np.logical_xor(T_, S.toarray()))
+        #return lambda S: sp.csc_matrix(xor_helper(T_, S))
+        return _f
 
     return SimAnneal(fn_temp, fn_energy, fn_evo, k=k_B, allow_zero=allow_zero, fn_invalid=fn_invalid)
 
+
+def xor_helper(a, b):
+    c = a + b
+    c[c == 2] = 0
+    return c
 
 class SimAnneal(object):
 
