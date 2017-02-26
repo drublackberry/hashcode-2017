@@ -49,20 +49,12 @@ class Judge(object):
             if self.overflow(S, fill_rate):
                 return 0
 
-        dL_tot = 0
+        mx = np.zeros((self.V, self.E))
 
-        # for e in range(self.E):
-        #     dL_per_video = self.dL[e].multiply(S).toarray().max(axis=-1)
-        #     delta = float(self.Rn[e].dot(dL_per_video))
-        #     dL_tot += delta
+        dL = self.dL
+        for e, dL_row in enumerate(dL):
+            stuff = dL_row.multiply(S).max(axis=-1)
+            mx[:, e] = stuff.toarray()[:, 0]
+        dL_tot = self.Rn.dot(mx).diagonal().sum()
 
-        # Videos actually requested
-        #e_R_nz, v_R_nz = self.Rn.nonzero()
-
-        #print(type(self.dL[0]))
-        for e in range(self.E):
-            dL_per_video = self.dL[e].multiply(S).max(axis=-1)
-            dL_tot += self.Rn[e].dot(dL_per_video)[0, 0]
-
-        s = dL_tot * 1000 / self.total_reqs
-        return s
+        return dL_tot * 1000 / self.total_reqs
