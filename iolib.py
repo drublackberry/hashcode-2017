@@ -109,7 +109,7 @@ class OutputBuffer(object):
 
 
 def read_output(fname, C, V):
-    S = sp.lil_matrix((V, C), dtype=np.bool)
+    S = sp.lil_matrix((V, C), dtype=np.int8)
     with open(fname, 'r') as fp:
         fp.readline()
         for line in fp.readlines():

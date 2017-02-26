@@ -49,7 +49,7 @@ class Judge(object):
             if self.overflow(S, fill_rate):
                 return 0
 
-        mx = np.empty((self.E, self.V), np.uint32)
+        mx = np.empty((self.E, self.V), np.float64)
 
         dL = self.dL
         for e, dL_row in enumerate(dL):
