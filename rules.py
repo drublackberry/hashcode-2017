@@ -22,7 +22,6 @@ class Judge(object):
         self.Rn = sp.csc_matrix(mod.Rn, dtype=np.uint32)
         self.total_reqs = int(self.Rn.sum())
 
-
         # v_size: V
         self.v_size = mod.v_size
 
@@ -47,6 +46,7 @@ class Judge(object):
 
         if not ignore_overflow:
             if self.overflow(S, fill_rate):
+                print("THIS SHOULD NOT HAPPEN")
                 return 0
 
         mx = np.empty((self.E, self.V), np.float64)

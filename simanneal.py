@@ -10,7 +10,7 @@ import rules
 
 
 def sim_anneal(mod, k_B=1.0, k_fill_rate=1000, n_fill_rate=2, evo_damp=0.1, judge=None,
-               allow_zero=True, cooling_step=0.1, T0=1.0, cooling_rate=0.9):
+               allow_zero=True, cooling_step=0.1, T0=1.0, cooling_rate=0.9, logtemp=False):
     S_shape = (mod.V, mod.C)
     S_size = mod.V * mod.C
     S_dtype = np.bool
@@ -20,14 +20,25 @@ def sim_anneal(mod, k_B=1.0, k_fill_rate=1000, n_fill_rate=2, evo_damp=0.1, judg
     if judge is None:
         judge = rules.Judge(mod)
 
-    def fn_temp(x):
-        t = np.int(x / cooling_step)
-        return T0 * (cooling_rate ** t)
+    # (V x C) sparse matrix that is nonzero only if V makes sense in C
+    pot_dL = (judge.Rn.T.dot(judge.dL)).toarray()
+    pot_dL = sp.csc_matrix(np.greater(pot_dL, 0), dtype=np.int8)
+    pot_dL.eliminate_zeros()
+
+    if logtemp:
+        def fn_temp(k):
+            if k == 0:
+                return T0
+            return T0 / (1 + np.log(k))
+    # else:
+    #     def fn_temp(x):
+    #         t = np.int(x / cooling_step)
+    #         return T0 * (cooling_rate ** t)
 
     def fn_energy(S):
-        fill_rate = (S.multiply(mod.v_size)).sum(axis=0) / mod.X
+        #fill_rate = (S.multiply(mod.v_size)).sum(axis=0) / mod.X
 
-        score = judge.score(S, ignore_overflow=False, fill_rate=fill_rate)
+        score = judge.score(S, ignore_overflow=False)
         #return - score + k_fill_rate * (fill_rate ** (n_fill_rate)).sum()
         return -score
         #return -score + k_fill_rate * (np.asarray(fill_rate) ** 2).sum()
@@ -50,31 +61,29 @@ def sim_anneal(mod, k_B=1.0, k_fill_rate=1000, n_fill_rate=2, evo_damp=0.1, judg
                 v = np.random.choice(r[F[:, c].reshape(-1) > 0])
                 S[v, c] = 0
 
-    w = np.exp(1e-3 * mod.v_size).sum()
-    weights = np.exp(1e-3 * mod.v_size) / w
+    # w = np.exp(1e-3 * mod.v_size).sum()
+    # weights = np.exp(1e-3 * mod.v_size) / w
+    w = mod.v_size.sum()
+    weights = mod.v_size / w
+    # w = 1
+    # weights = 1
     def fn_evo(temp):
-        T_ = (weights * np.random.rand(*S_shape) < evo_damp * temp / w).astype(np.int8)
+        #T_ = (weights * np.random.rand(*S_shape) < evo_damp * temp / w).astype(np.int8)
+        T_ = (weights * np.random.rand(*S_shape) < evo_damp / w).astype(np.int8)
 
         def _f(S):
             S_tmp = sp.csc_matrix(xor_helper(T_, S))
-            D = S_tmp - S
-            #print(D)
-            # Only positive changes are important here
+            S_tmp = S_tmp.multiply(pot_dL)
+            D = (S_tmp - S)
             D = (D + D.power(2)) / 2
 
             F = np.asarray(fr(S_tmp)).reshape(-1)
-            #print(type(F), F.shape)
-            #print(F)
             full = np.flatnonzero(F > 1)
-            #print(full.shape)
-            #print(full)
-            #exit(1)
-            if len(full) == 0:
-                return sp.csc_matrix(S_tmp)
-            #print(full)
-            S_tmp[:, full] = xor_helper(S_tmp[:, full], D[:, full])
-            #print("FILLRATE", fr(S_tmp))
-            #print(S_tmp.shape)
+            #print((S_tmp - S).sum())
+            if len(full) != 0:
+                S_tmp[:, full] = xor_helper(S_tmp[:, full], D[:, full])
+            S_tmp.eliminate_zeros()
+            #print((S_tmp - S).sum())
             return sp.csc_matrix(S_tmp)
 
         #return lambda S: sp.csc_matrix(np.logical_xor(T_, S.toarray()))
@@ -87,6 +96,7 @@ def sim_anneal(mod, k_B=1.0, k_fill_rate=1000, n_fill_rate=2, evo_damp=0.1, judg
 def xor_helper(a, b):
     c = a + b
     c[c == 2] = 0
+    #print(c[c==2])
     return c
 
 class SimAnneal(object):
@@ -147,7 +157,12 @@ class SimAnneal(object):
 
 
         p = np.random.rand()
-        if (dE < 0) or (p < np.exp(-dE / (self.k * temp))):
+        if temp > 0:
+            boltz = np.exp(-dE / (self.k * temp))
+        else:
+            boltz = 0
+
+        if (dE < 0) or (p < boltz):
             S_next_true = S_next
             E_next_true = E_next
 
@@ -174,8 +189,9 @@ class SimAnnealIterator(object):
         return self
 
     def __next__(self):
-        x = self.current_step / float(self.num_steps)
-        self.S, E = self.sim_anneal.get_next_state(self.S, x)
+        #x = self.current_step / float(self.num_steps)
+        self.S, E = self.sim_anneal.get_next_state(self.S, self.current_step)
+        #self.current_step += 1
         self.current_step += 1
         if self.current_step >= self.num_steps:
             raise StopIteration()
