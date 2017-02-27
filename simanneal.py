@@ -9,6 +9,40 @@ import scipy.sparse as sp
 import rules
 
 
+class Propagator(object):
+
+    def __init__(self, mod):
+        self.mod = mod
+        wsum = (1 / self.mod.v_size).sum()
+        wvid = (1 / self.mod.v_size / wsum).flatten()
+        judge = rules.Judge(mod)
+        pot_dL = (judge.Rn.T.dot(judge.dL)).toarray()
+        pot_dL = sp.csc_matrix(np.greater(pot_dL, 0), dtype=np.int8)
+        pot_dL.eliminate_zeros()
+        W = pot_dL.multiply(wvid[:, None])
+        W /= W.sum(axis=0)
+        self.weights = np.asarray(W)
+
+
+    def prune(self, S):
+        return sp.csc_matrix(S.multiply(np.greater(self.weights > 0)))
+
+    def neighbor(self, S):
+        found = False
+        S_new = S.copy()
+        while not found:
+            c = np.random.choice(self.mod.C)
+            v = np.random.choice(self.mod.V, p=self.weights[:, c])
+            if S_new[v, c] == 1:
+                S_new[v, c] = 0
+                found = True
+            else:
+                if S[:, c].multiply(self.mod.v_size).sum() + self.mod.v_size[v] <= self.mod.X:
+                    S_new[v, c] = 1
+                    found = True
+        return S_new
+
+
 def sim_anneal(mod, k_B=1.0, k_fill_rate=1000, n_fill_rate=2, evo_damp=0.1, judge=None,
                allow_zero=True, cooling_step=0.1, T0=1.0, cooling_rate=0.9, logtemp=False):
     S_shape = (mod.V, mod.C)
@@ -30,10 +64,10 @@ def sim_anneal(mod, k_B=1.0, k_fill_rate=1000, n_fill_rate=2, evo_damp=0.1, judg
             if k == 0:
                 return T0
             return T0 / (1 + np.log(k))
-    # else:
-    #     def fn_temp(x):
-    #         t = np.int(x / cooling_step)
-    #         return T0 * (cooling_rate ** t)
+    else:
+        def fn_temp(k):
+            t = np.int(k / cooling_step)
+            return T0 * (cooling_rate ** t)
 
     def fn_energy(S):
         #fill_rate = (S.multiply(mod.v_size)).sum(axis=0) / mod.X
@@ -67,24 +101,25 @@ def sim_anneal(mod, k_B=1.0, k_fill_rate=1000, n_fill_rate=2, evo_damp=0.1, judg
     weights = mod.v_size / w
     # w = 1
     # weights = 1
+    prop = Propagator(mod)
     def fn_evo(temp):
         #T_ = (weights * np.random.rand(*S_shape) < evo_damp * temp / w).astype(np.int8)
-        T_ = (weights * np.random.rand(*S_shape) < evo_damp / w).astype(np.int8)
+        #T_ = (weights * np.random.rand(*S_shape) < evo_damp / w).astype(np.int8)
+        _f = lambda S: prop.neighbor(S)
+        # def _f(S):
+        #     S_tmp = sp.csc_matrix(xor_helper(T_, S))
+        #     S_tmp = S_tmp.multiply(pot_dL)
+        #     D = (S_tmp - S)
+        #     D = (D + D.power(2)) / 2
 
-        def _f(S):
-            S_tmp = sp.csc_matrix(xor_helper(T_, S))
-            S_tmp = S_tmp.multiply(pot_dL)
-            D = (S_tmp - S)
-            D = (D + D.power(2)) / 2
-
-            F = np.asarray(fr(S_tmp)).reshape(-1)
-            full = np.flatnonzero(F > 1)
-            #print((S_tmp - S).sum())
-            if len(full) != 0:
-                S_tmp[:, full] = xor_helper(S_tmp[:, full], D[:, full])
-            S_tmp.eliminate_zeros()
-            #print((S_tmp - S).sum())
-            return sp.csc_matrix(S_tmp)
+        #     F = np.asarray(fr(S_tmp)).reshape(-1)
+        #     full = np.flatnonzero(F > 1)
+        #     #print((S_tmp - S).sum())
+        #     if len(full) != 0:
+        #         S_tmp[:, full] = xor_helper(S_tmp[:, full], D[:, full])
+        #     S_tmp.eliminate_zeros()
+        #     #print((S_tmp - S).sum())
+        #     return sp.csc_matrix(S_tmp)
 
         #return lambda S: sp.csc_matrix(np.logical_xor(T_, S.toarray()))
         #return lambda S: sp.csc_matrix(xor_helper(T_, S))
@@ -161,8 +196,8 @@ class SimAnneal(object):
             boltz = np.exp(-dE / (self.k * temp))
         else:
             boltz = 0
-
         if (dE < 0) or (p < boltz):
+#            print(dE, p, boltz)
             S_next_true = S_next
             E_next_true = E_next
 

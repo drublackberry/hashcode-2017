@@ -4,10 +4,10 @@
 import test_simanneal
 
 
-OUTPATH = "./outputs/015"
+OUTPATH = "./outputs/088"
 
 class FakeArgs(object):
-    scenario = "trending_today"
+    scenario = "videos_worth_spreading"
 
 
 args = FakeArgs()
