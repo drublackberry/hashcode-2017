@@ -43,8 +43,31 @@ class Propagator(object):
         return S_new
 
 
+class Acceptance(object):
+    """
+    Boltzmann acceptance function with optional callback to
+    log attempts (calculate Q/P matrix).
+    """
+
+    def __init__(self, callback=None):
+        self.callback = callback
+
+    def __call__(self, E, E_next, temp):
+        dE = E_next - E
+        p = np.random.rand()
+        boltz = 0
+        if temp > 0:
+            boltz = np.exp(-dE / temp)
+
+        if self.callback:
+            self.callback(E, E_next)
+
+        return (dE < 0) or (p < boltz)
+
+
 def sim_anneal(mod, k_B=1.0, k_fill_rate=1000, n_fill_rate=2, evo_damp=0.1, judge=None,
-               allow_zero=True, cooling_step=0.1, T0=1.0, cooling_rate=0.9, logtemp=False):
+               allow_zero=True, cooling_step=0.1, T0=1.0, cooling_rate=0.9, logtemp=False,
+               Q_callback=None):
     S_shape = (mod.V, mod.C)
     S_size = mod.V * mod.C
     S_dtype = np.bool
@@ -125,7 +148,8 @@ def sim_anneal(mod, k_B=1.0, k_fill_rate=1000, n_fill_rate=2, evo_damp=0.1, judg
         #return lambda S: sp.csc_matrix(xor_helper(T_, S))
         return _f
 
-    return SimAnneal(fn_temp, fn_energy, fn_evo, k=k_B, allow_zero=allow_zero, fn_invalid=fn_invalid)
+    return SimAnneal(fn_temp, fn_energy, fn_evo, k=k_B, allow_zero=allow_zero, fn_invalid=fn_invalid,
+                     Q_callback=Q_callback)
 
 
 def xor_helper(a, b):
@@ -134,11 +158,43 @@ def xor_helper(a, b):
     #print(c[c==2])
     return c
 
+
+class CanonicalEnsemble(object):
+
+    def __init__(self, lumps):
+        self.n = len(lumps) - 1
+        self.lumps = lumps
+        self.centroids = 0.5 * (lumps[:-1] + lumps[1:])
+        self._Q = np.zeros((self.n, self.n))
+        self.dE = self.centroids[:, None] - self.centroids
+
+    def reset(self):
+        self._Q = np.zeros((self.n, self.n))
+
+    def find_lump(self, E):
+        return np.argmin(abs(E - self.centroids))
+
+    def __call__(self, E_0, E_1):
+        i, j = self.find_lump(E_0), self.find_lump(E_1)
+        self._Q[i, j] += 1
+
+    def compute_P(self):
+        P = self._Q.copy()
+        P /= P.sum(axis=0)
+        return P
+
+    def compute_G(self, T):
+        P = self.compute_P()
+        P[np.isnan(P)] = 0
+        G = P * np.exp(+self.dE / T)
+        return G
+
+
 class SimAnneal(object):
 
 
     def __init__(self, fn_temp, fn_energy, fn_evo, k=1.0, allow_zero=True,
-                 fn_invalid=None):
+                 fn_invalid=None, Q_callback=None):
         """
         fn_temp - callable [0, 1] -> T
         fn_energy - callable S -> E(S)
@@ -152,7 +208,7 @@ class SimAnneal(object):
         self.k = k
         self.allow_zero = allow_zero
         self.fn_invalid = fn_invalid
-
+        self.accept = Acceptance(Q_callback)
 
     def get_next_state(self, S, x):
         """
@@ -165,15 +221,6 @@ class SimAnneal(object):
         T = self.fn_evo(temp)
         S_next = T(S)
         E_next = self.fn_energy(S_next)
-
-        # If we're already non-compliant, accept only descent
-        # if E >= 0:
-        #     dE = E_next - E
-        #     while dE > 0:
-        #         T = self.fn_evo(temp)
-        #         S_next = T(S)
-        #         E_next = self.fn_energy(S_next)
-        #         dE = E_next - E
 
         if not self.allow_zero:
             if self.fn_invalid is not None:
@@ -188,21 +235,9 @@ class SimAnneal(object):
 
         S_next_true = S
         E_next_true = E
-        dE = E_next - E
-
-
-        p = np.random.rand()
-        if temp > 0:
-            boltz = np.exp(-dE / (self.k * temp))
-        else:
-            boltz = 0
-        if (dE < 0) or (p < boltz):
-#            print(dE, p, boltz)
-            S_next_true = S_next
+        if self.accept(E, E_next, temp):
             E_next_true = E_next
-
-        #print(type(S_next_true))
-        #print(S_next_true.shape)
+            S_next_true = S_next
 
         return S_next_true, E_next_true
 
