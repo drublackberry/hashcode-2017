@@ -7,6 +7,7 @@ import model
 import simanneal
 import numpy as np
 import scipy.sparse as sp
+import scipy.sparse.linalg as spla
 import matplotlib.pyplot as plt
 
 
@@ -16,30 +17,36 @@ mod = model.SparseModel("me_at_the_zoo")
 
 def do_temp(T):
 
-    lumps = -np.linspace(0, 500000, 1001)
-    print(lumps)
-    stats = simanneal.CanonicalEnsemble(lumps)
-
+    stats = simanneal.RunningStats()
     algo = simanneal.sim_anneal(mod, T0=T, cooling_rate=1, Q_callback=stats)
 
     S_0 = sp.csc_matrix(np.greater(mod.storage.toarray(), 0), dtype=np.int16)
-
     energy_t = []
 
-    for i, (S, E) in enumerate(algo(S_0, 2000)):
+    # Burn-in
+    for i, (S, E) in enumerate(algo(S_0, 1000)):
         pass
-
     stats.reset()
-    for i, (S, E) in enumerate(algo(S_0, 10000)):
-        if i % 1000 == 0:
-            print(i)
+
+    for i, (S, E) in enumerate(algo(S_0, 5000)):
+        if i % 100 == 0:
+            print(i, E)
         energy_t.append(E)
 
-    np.save("G.npy", stats.compute_G(T))
+    P = stats.compute_transition_matrix()
+    E = np.sort(np.unique(stats._from + stats._to))
+    np.save("P.npy", P)
+    np.save("E.npy", E)
+
+    vals, vecs = spla.eigs(P, k=1, which="LR")
+    Z = np.sum(vecs[:, 0] * np.exp(-E / T))
+
+    print(vals)
+    print("Z_est:", Z)
     return np.asarray(energy_t)
 
 
-for T in [100000]:
+for T in [10000]:
     print(T)
     plt.figure()
     E = do_temp(T)

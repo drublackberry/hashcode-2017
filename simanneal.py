@@ -9,6 +9,52 @@ import scipy.sparse as sp
 import rules
 
 
+class MetropolisEstimator(object):
+
+    def __init__(self, temp):
+        self._energy = []
+        self.temp = temp
+
+    def compute(self):
+        """
+        Estimate canonical partition function.
+        """
+        E = np.asarray(self._energy)
+        n = len(E)
+
+        boltz = np.exp(-E / self.temp)
+
+        # Partition function Z
+        Z = np.mean(boltz)
+
+        dZ = -np.mean(E * boltz) / (self.temp ** 2)
+        ddZ = (2 * np.mean(E * boltz) + np.mean((E ** 2) * boltz)) / (self.temp ** 3)
+
+        dlogZ = dZ / Z
+        ddlogZ = (ddZ * Z - dZ ** 2) / (Z ** 2)
+
+        # <E>
+        E_ev = (self.temp ** 2) * dlogZ
+
+        # heat capacity
+        C = 2 * self.temp * dlogZ + (self.temp ** 2) * ddlogZ
+
+        # entropy
+        S = np.log(Z) + E_ev / T
+
+        return {"mean_energy": E_ev,
+                "heat_capacity": C,
+                "entropy": S,
+                "partition function": Z,
+                "temperature": self.temp}
+
+
+class ThermodynamicPortrait(object):
+
+    def __init__(self)
+
+
+
 def sim_anneal(mod, judge=None, cooling_step=0.1, T0=1.0, cooling_rate=0.9, Q_callback=None):
     """
     Construct basic SimAnneal instance using exponential cooling schedule.
@@ -99,6 +145,36 @@ class Acceptance(object):
         return (dE < 0) or (p < boltz)
 
 
+
+class RunningStats(object):
+
+    def __init__(self):
+        self.reset()
+
+    def reset(self):
+        self._from = []
+        self._to = []
+
+    def __call__(self, E0, E1):
+        self._from.append(E0)
+        self._to.append(E1)
+
+    def compute_transition_matrix(self):
+        levels = np.sort(np.unique(self._from + self._to))
+        n = len(levels)
+
+        # Quick lookup table for indices
+        idx = {e: i for (i, e) in enumerate(levels)}
+
+        Q = sp.lil_matrix((n, n))
+        for E0, E1 in zip(self._from, self._to):
+            Q[idx[E0], idx[E1]] += 1
+
+        Q = sp.csc_matrix(Q)
+        P = Q.multiply(1 / Q.sum(axis=0))
+        P[np.isnan(P)] = 0
+
+        return P
 
 
 class CanonicalEnsemble(object):
