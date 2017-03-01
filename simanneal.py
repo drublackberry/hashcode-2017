@@ -20,7 +20,7 @@ def sim_anneal(mod, judge=None, cooling_step=0.1, T0=1.0, cooling_rate=0.9, Q_ca
     if judge is None:
         judge = rules.Judge(mod)
 
-    fn_temp = lambda k: T0 * (cooling_rate ** np.int(k / cooling_rate))
+    fn_temp = lambda k: T0 * (cooling_rate ** np.int(k / cooling_step))
     fn_energy = lambda S: -judge.score(S, ignore_overflow=False)
     fn_evo = Propagator(mod)
 
@@ -43,9 +43,20 @@ class Propagator(object):
         W = pot_dL.multiply(wvid[:, None])
         W /= W.sum(axis=0)
         self.weights = np.asarray(W)
+        self._dist = 1
+
+    @property
+    def dist(self):
+        return self._dist
+
+    @dist.setter
+    def dist(self, d):
+        self._dist = d
 
     def __call__(self, S):
-        return self.neighbor(S)
+        for i in range(self.dist):
+            S = self.neighbor(S)
+        return S
 
     def prune(self, S):
         return sp.csc_matrix(S.multiply(np.greater(self.weights > 0)))
@@ -144,8 +155,7 @@ class SimAnneal(object):
         temp = self.fn_temp(x)
         E = self.fn_energy(S)
 
-        T = self.fn_evo(temp)
-        S_next = T(S)
+        S_next = self.fn_evo(S)
         E_next = self.fn_energy(S_next)
 
         S_next_true = S

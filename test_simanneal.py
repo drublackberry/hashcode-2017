@@ -11,26 +11,11 @@ import os
 import glob
 import tempfile
 import scipy.sparse as sp
-#import cProfile as prof
 
-# STEPS = 100000
-# K_B = 100
-# K_FR = 0
-# N_FR = 0
-# CSTEP = 0.0001
-# T0 = 100000
-# DAMP = 10 / T0
-# CRATE = 0.9
-
-STEPS = 10000
-K_B = 1
-K_FR = 1e10
-N_FR = 8
-CSTEP = 1
-T0 = 1000
-#DAMP = 1e-6
-AVG_CHANGES_PER_STEP = 10000
-CRATE = 0.999
+STEPS = 1000
+CSTEP = 100
+T0 = 20000
+CRATE = 0.8
 
 
 #IG_FILE = "./outputs/017/trending_today-00099.out"
@@ -41,10 +26,10 @@ def main(args, outpath):
     print("Model loaded.")
     judge = rules.Judge(mod)
 
-    algo = simanneal.sim_anneal(mod, K_B, K_FR, N_FR, AVG_CHANGES_PER_STEP / (mod.C * mod.V), judge=judge,
-                                allow_zero=True, T0=T0, cooling_step=CSTEP,
-                                cooling_rate=CRATE, logtemp=False)
-
+    algo = simanneal.sim_anneal(mod, judge=judge, T0=T0,
+                                cooling_step=CSTEP,
+                                cooling_rate=CRATE)
+    algo.fn_evo.dist = 10
     S_0 = sp.csc_matrix(np.greater(mod.storage.toarray(), 0), dtype=np.int16)
 
     # best = 0
@@ -69,16 +54,8 @@ def main(args, outpath):
 
     # Thermalize
     prop = simanneal.Propagator(mod)
-    thermalize = simanneal.sim_anneal(mod, 1, 0, 0, judge=judge, allow_zero=True, T0=T0,
-                                      cooling_step=1e9, cooling_rate=1)
 
     buf = iolib.OutputBuffer(args.scenario, outpath)
-    for i, (S_0, E) in enumerate(thermalize(S_0, 2000)):
-        if i % 100 == 0:
-            print("MELTING %05d" % i, "E=%d" % E, "T=%.3f" % thermalize.fn_temp(i))
-    buf.generate_output(S_0)
-    buf.write_to_file("S0")
-
 
     print("START")
     for i, (S, E) in enumerate(algo(S_0, STEPS)):
