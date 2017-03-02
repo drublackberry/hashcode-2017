@@ -49,10 +49,6 @@ class MetropolisEstimator(object):
                 "temperature": self.temp}
 
 
-class ThermodynamicPortrait(object):
-
-    def __init__(self)
-
 
 
 def sim_anneal(mod, judge=None, cooling_step=0.1, T0=1.0, cooling_rate=0.9, Q_callback=None):

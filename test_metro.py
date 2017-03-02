@@ -9,6 +9,7 @@ import numpy as np
 import scipy.sparse as sp
 import scipy.sparse.linalg as spla
 import matplotlib.pyplot as plt
+import pickle
 
 
 mod = model.SparseModel("me_at_the_zoo")
@@ -24,29 +25,25 @@ def do_temp(T):
     energy_t = []
 
     # Burn-in
-    for i, (S, E) in enumerate(algo(S_0, 1000)):
+    for i, (S, E) in enumerate(algo(S_0, 2000)):
         pass
     stats.reset()
 
-    for i, (S, E) in enumerate(algo(S_0, 5000)):
+    for i, (S, E) in enumerate(algo(S_0, 10000)):
         if i % 100 == 0:
             print(i, E)
         energy_t.append(E)
 
-    P = stats.compute_transition_matrix()
-    E = np.sort(np.unique(stats._from + stats._to))
-    np.save("P.npy", P)
-    np.save("E.npy", E)
+    with open('stats.pickle', 'wb') as fp:
+        pickle.dump(stats, fp, pickle.HIGHEST_PROTOCOL)
 
-    vals, vecs = spla.eigs(P, k=1, which="LR")
-    Z = np.sum(vecs[:, 0] * np.exp(-E / T))
+    # vals, vecs = spla.eigs(P, k=1, which="LR")
+    # Z = np.sum(vecs[:, 0] * np.exp(-E / T))
 
-    print(vals)
-    print("Z_est:", Z)
     return np.asarray(energy_t)
 
 
-for T in [10000]:
+for T in [1000000]:
     print(T)
     plt.figure()
     E = do_temp(T)
