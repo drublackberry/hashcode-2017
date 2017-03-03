@@ -9,6 +9,113 @@ import scipy.sparse as sp
 import rules
 
 
+def get_lambda2(G):
+    """
+    Return 2nd-largest eigenvalue of G
+    """
+    evals, evecs = np.linalg.eig(G)
+    ev_order = sorted(np.arange(len(evals)), key=lambda i: np.real(evals[i]))[::-1]
+    return evals[ev_order[1]].real
+
+def relaxation_time(P, T):
+    G = get_G(P, T)
+    l2 = get_lambda2(G)
+    return -1 / np.log(l2)
+
+
+def lump(values, counts, n):
+    cdf = np.cumsum(counts)
+    cdf /= cdf[-1]
+
+    x = np.arange(n) / n
+    return np.interp(x, cdf, values)
+
+
+
+
+class Canonical(object):
+
+    def __init__(self, n_macro):
+        self.n = n_macro
+        self.levels = None
+        self.delta_levels = None
+        self.Q = np.zeros((n_macro, n_macro))
+        self.P = None
+        self.G = None
+        self.p_stat = None
+
+    def reset(self):
+        self.Q[:, :] = 0
+        self.P = None
+        self.G = None
+        self.p_stat = None
+
+    def setup_macrostates(self, en_t):
+        E = np.sort(np.unique(en_t))
+        counts = np.zeros_like(E)
+        for i, e in enumerate(E):
+            counts[i] = np.count_nonzero(en_t == e)
+        self.levels = lump(E, counts, self.n)
+        self.level_diffs = self.levels[:, None] - self.levels
+
+    def update_Q(self, E0, E1):
+        i0 = np.argmax(self.levels > E0)
+        i1 = np.argmax(self.levels > E1)
+        self.Q[i0, i1] += 1
+
+    def update_P(self):
+        self.P = self.Q / self.Q.sum(0)
+        evals, evecs = np.linalg.eig(self.P)
+        i_p = np.argmax(evals.real)
+        self.p_stat = evecs[i_p].real
+
+        # In case of numerical shenanigans
+        self.p_stat = self.p_stat / self.p_stat.sum()
+
+
+    def update_G(self, T):
+        self.G = self.P * np.exp(self.level_diffs / T)
+
+    def get_equilibrium_properties(self, T):
+        p = self.p_stat
+        E = self.levels
+        B = np.exp(-E / T)
+
+        # Compute partition sum
+        Z = np.sum(p * B)
+
+        # Compute derivatives of Z
+        dZ = np.sum(E * p * B)
+        ddZ = -2 * dZ / T + np.sum((E ** 2) * p * B) / (T ** 4)
+        dlogZ = dZ / Z
+        ddlogZ = (ddZ * Z - (dZ ** 2)) / (Z ** 2)
+
+
+        # Compute equilibrium properties
+        # expectation value for energy
+        E_avg = (T ** 2) * dlogZ
+        # heat capacity
+        C = 2 * T * dlogZ + (T ** 2) * ddlogZ
+        # entropy
+        S = np.log(Z) + T * dlogZ
+
+        return {"expected_energy": E_avg, "heat_capacity": C, "entropy": S}
+
+
+    def get_relaxation_time(self):
+        # lambda2 = 2nd largest eigenvalue of G
+        evals, evecs = np.linalg.eig(self.G)
+        lambda2 = np.sort(evals.real)[-2]
+        eps = -1 / np.log(lambda2)
+        return eps
+
+
+    def __call__(self, E0, E1):
+        # Keep running tallies of attempted moves
+        self.update_Q(E0, E1)
+
+
+
 class MetropolisEstimator(object):
 
     def __init__(self, temp):
