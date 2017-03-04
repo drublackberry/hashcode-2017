@@ -61,13 +61,15 @@ class Canonical(object):
     def update_Q(self, E0, E1):
         i0 = np.argmax(self.levels > E0)
         i1 = np.argmax(self.levels > E1)
+        #print(self.Q.sum())
         self.Q[i0, i1] += 1
 
     def update_P(self):
         self.P = self.Q / self.Q.sum(0)
+        self.P[np.logical_not(np.isfinite(self.P))] = 0
         evals, evecs = np.linalg.eig(self.P)
         i_p = np.argmax(evals.real)
-        self.p_stat = evecs[i_p].real
+        self.p_stat = abs(evecs[:, i_p])
 
         # In case of numerical shenanigans
         self.p_stat = self.p_stat / self.p_stat.sum()
@@ -76,16 +78,19 @@ class Canonical(object):
     def update_G(self, T):
         self.G = self.P * np.exp(self.level_diffs / T)
 
+    def recompute(self, T):
+        self.update_P()
+        self.update_G(T)
+
     def get_equilibrium_properties(self, T):
         p = self.p_stat
         E = self.levels
         B = np.exp(-E / T)
-
         # Compute partition sum
         Z = np.sum(p * B)
 
         # Compute derivatives of Z
-        dZ = np.sum(E * p * B)
+        dZ = np.sum(E * p * B) / (T ** 2)
         ddZ = -2 * dZ / T + np.sum((E ** 2) * p * B) / (T ** 4)
         dlogZ = dZ / Z
         ddlogZ = (ddZ * Z - (dZ ** 2)) / (Z ** 2)
@@ -104,8 +109,12 @@ class Canonical(object):
 
     def get_relaxation_time(self):
         # lambda2 = 2nd largest eigenvalue of G
-        evals, evecs = np.linalg.eig(self.G)
+        try:
+            evals, evecs = np.linalg.eig(self.G)
+        except np.linalg.LinAlgError:
+            return None
         lambda2 = np.sort(evals.real)[-2]
+        #print(lambda2)
         eps = -1 / np.log(lambda2)
         return eps
 
@@ -113,6 +122,54 @@ class Canonical(object):
     def __call__(self, E0, E1):
         # Keep running tallies of attempted moves
         self.update_Q(E0, E1)
+
+
+
+class EntropyDescentScheduler(object):
+
+    def __init__(self, v, T0, init_rate, stats, T_thresh):
+        self.T0 = T0
+        self.v = v
+        self.T = [T0]
+        self.safe_rate = init_rate
+        self.rate = init_rate
+        self.counter = 0
+        self.stats = stats
+        self.T_thresh = T_thresh
+
+    def do_recompute(self, relax_time, heat_cap):
+        if relax_time is None or self.T[-1] < self.T_thresh:
+            self.rate = self.safe_rate
+            self.counter = 1
+        else:
+            self.rate = self.v / (relax_time * np.sqrt(heat_cap))
+            if self.rate >= 0.01:
+                self.rate = 0.01
+            #self.counter = relax_time
+            self.counter = 5
+
+    def recompute(self):
+        #print("Recomputing schedule...")
+        self.stats.recompute(self.T[-1])
+        eps = self.stats.get_relaxation_time()
+        props = self.stats.get_equilibrium_properties(self.T[-1])
+        c = props["heat_capacity"]
+        #print(eps, c)
+        self.do_recompute(eps, c)
+
+    def __call__(self, k):
+        if k == 0:
+            return self.T0
+        if self.counter <= 0:
+            self.recompute()
+        if not np.isfinite(self.rate):
+            self.rate = self.safe_rate
+        if self.T[-1] > self.T[-1] * self.rate:
+            self.T.append(self.T[-1] * (1 - self.rate))
+        else:
+            self.T.append(0)
+        self.counter -= 1
+        return self.T[-1]
 
 
 
@@ -174,6 +231,22 @@ def sim_anneal(mod, judge=None, cooling_step=0.1, T0=1.0, cooling_rate=0.9, Q_ca
     fn_evo = Propagator(mod)
 
     return SimAnneal(fn_temp, fn_energy, fn_evo, Q_callback=Q_callback)
+
+
+
+#ef sim_anneal# 2(mod, T0, ensemble, v, judge=None):
+    # S_shape = (mod.V, mod.C)
+    # S_size = mod.V * mod.C
+    # S_dtype = np.bool
+
+    # if judge is None:
+    #     judge = rules.Judge(mod)
+
+    # fn_temp =
+    # fn_energy = lambda S: -judge.score(S, ignore_overflow=False)
+    # fn_evo = Propagator(mod)
+
+    # return SimAnneal(fn_temp, fn_energy, fn_evo, Q_callback=Q_callback)
 
 
 class Propagator(object):
@@ -280,35 +353,6 @@ class RunningStats(object):
         return P
 
 
-class CanonicalEnsemble(object):
-
-    def __init__(self, lumps):
-        self.n = len(lumps) - 1
-        self.lumps = lumps
-        self.centroids = 0.5 * (lumps[:-1] + lumps[1:])
-        self._Q = np.zeros((self.n, self.n))
-        self.dE = self.centroids[:, None] - self.centroids
-
-    def reset(self):
-        self._Q = np.zeros((self.n, self.n))
-
-    def find_lump(self, E):
-        return np.argmin(abs(E - self.centroids))
-
-    def __call__(self, E_0, E_1):
-        i, j = self.find_lump(E_0), self.find_lump(E_1)
-        self._Q[i, j] += 1
-
-    def compute_P(self):
-        P = self._Q.copy()
-        P /= P.sum(axis=0)
-        return P
-
-    def compute_G(self, T):
-        P = self.compute_P()
-        P[np.isnan(P)] = 0
-        G = P * np.exp(+self.dE / T)
-        return G
 
 
 class SimAnneal(object):
